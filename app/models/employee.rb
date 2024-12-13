@@ -5,5 +5,9 @@ class Employee < ApplicationRecord
     leader: 2, 
     normal: 3
   }
+  def self.generate_summary(zipped_file)
+    # unzip file 
+    # 
+  end
 end
 
