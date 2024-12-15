@@ -18,6 +18,18 @@
   </head>
 
   <body>
+    <% flash.each do |type, msg| %>
+      <% if type == :alert && msg.is_a?(Array) %>
+        <% msg.each do |mess| %>
+          <div>
+            <%= mess %>
+          </div>
+        <% end %>
+      <% end %>
+      <div>
+        <%= msg %>
+      </div>
+    <% end %>
     <%= yield %>
   </body>
 </html>

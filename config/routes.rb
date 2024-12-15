@@ -11,5 +11,8 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
-  post 'summary', to: 'employees#summary'
+  resources :employees, only: [ :new, :create ] do
+    get "summary_reviews", to: "employees#new_summary"
+    post "summary_reviews", to: "employees#summary"
+  end
 end

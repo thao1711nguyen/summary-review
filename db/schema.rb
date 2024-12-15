@@ -13,6 +13,7 @@
 ActiveRecord::Schema[7.2].define(version: 2024_12_13_073823) do
   create_table "employees", force: :cascade do |t|
     t.integer "category", default: 3, null: false
+    t.string "name", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
