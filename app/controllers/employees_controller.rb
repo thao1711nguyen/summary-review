@@ -3,9 +3,7 @@ class EmployeesController < ApplicationController
   end
   def create
     file = params[:file]
-    if !file
-      flash[:alert] = "You need to upload a file"
-    elsif file.content_type != "application/json"
+    if file.content_type != "application/json"
       flash[:alert] = "You need to submit a json file!"
     else
       employee_list = {}
@@ -18,7 +16,7 @@ class EmployeesController < ApplicationController
       result = Employee.create_employees(employee_list)
       if result.length == 0
         flash[:notice] = "successfully create employees"
-        redirect_to employee_summary_reviews_path
+        redirect_to summary_reviews_path
       else
         flash[:alert] = result
         redirect_to new_employee_path
@@ -29,8 +27,10 @@ class EmployeesController < ApplicationController
   end
   def summary
     zipped_file = params[:file]
-    if zipped_file && zipped_file.content_type == "application/zip"
+    if zipped_file.content_type == "application/zip"
       result_file = Employee.generate_summary(zipped_file)
+    else  
+
     end
   end
 end
