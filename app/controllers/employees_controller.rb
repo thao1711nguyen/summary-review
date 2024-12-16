@@ -18,7 +18,7 @@ class EmployeesController < ApplicationController
       result = Employee.create_employees(employee_list)
       if result.length == 0
         flash[:notice] = "successfully create employees"
-        redirect_to
+        redirect_to employee_summary_reviews_path
       else
         flash[:alert] = result
         redirect_to new_employee_path
