@@ -238,11 +238,11 @@ class Employee < ApplicationRecord
         workbook.worksheets.each do |sheet|
           case sheet.sheet_name
           when "考え方- Tu duy"
-            write_to_sheet(owner, sheet, options["tu_duy"])
+            write_to_sheet(employee, sheet, options["tu_duy"])
           when "熱意- Nhiet tinh"
-            write_to_sheet(owner, sheet, options["nhiet_tinh"])
+            write_to_sheet(employee, sheet, options["nhiet_tinh"])
           else
-            write_to_sheet(owner, sheet, options["vai_tro"])
+            write_to_sheet(employee, sheet, options["vai_tro"])
           end
         end
         result_file_name = "#{employee.full_name}-review.xlsx"
