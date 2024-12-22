@@ -22,7 +22,7 @@ class Employee < ApplicationRecord
       errors= []
       if managers = list["manager"]
         managers.each do |manager|
-          new_record = Employee.new(name: manager["name"], category: 1)
+          new_record = Employee.new(name: manager["name"], full_name: manager["full_name"], category: 1)
           unless new_record.save
             errors << new_record.errors.full_messages
           end
@@ -30,7 +30,7 @@ class Employee < ApplicationRecord
       end
       if leaders = list["leader"]
         leaders.each do |leader|
-          new_record = Employee.new(name: leader["name"], category: 2)
+          new_record = Employee.new(name: leader["name"], full_name: leader["full_name"], category: 2)
           unless new_record.save
             errors << new_record.errors.full_messages
           end
@@ -38,7 +38,7 @@ class Employee < ApplicationRecord
       end
       if normals = list["normal"]
         normals.each do |normal|
-          new_record = Employee.new(name: normal["name"])
+          new_record = Employee.new(name: normal["name"], full_name: normal["full_name"])
           unless new_record.save
             errors << new_record.errors.full_messages
           end
