@@ -18,8 +18,8 @@ class EmployeesController < ApplicationController
         flash[:notice] = "successfully create employees"
         redirect_to summary_reviews_path
       else
-        flash[:alert] = result
-        redirect_to new_employee_path
+        flash.now[:alert] = result
+        render 'new'
       end
     end
   end
@@ -27,7 +27,8 @@ class EmployeesController < ApplicationController
   end
   def summary
     zipped_file = params[:file]
-    if zipped_file.content_type == "application/zip"
+    p zipped_file.content_type
+    if zipped_file.content_type == "application/zip" || zipped_file.content_type == "application/x-zip-compressed"
       Employee.generate_summary(zipped_file)
       file_name = "result.zip"
       zipped_file_path = Rails.root.join("app", "views", "employees", "review", file_name)

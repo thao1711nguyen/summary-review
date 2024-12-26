@@ -1,17 +1,14 @@
 services:
   db:
-    image: bitnami/postgresql:15
+    image: postgres:15
     container_name: summary-review-db
     ports:
       - "5432:5432"
     hostname: db
     volumes:
-      - db-data:/bitnami/postgresql:rw
+      - summary-review-data:/bitnami/postgresql:rw
     environment:
-      POSTGRESQL_DATABASE: thao1711nguyen
-      POSTGRESQL_USERNAME: thao1711nguyen
-      POSTGRESQL_PASSWORD: 123
-
+      POSTGRES_PASSWORD: 123
   backend:
     build:
       context: ./ 
@@ -32,10 +29,10 @@ services:
       VIRTUAL_PORT: "80"
       HTTPS_METHOD: "noredirect"
       DBHOST: db
-      DBUSER: thao1711nguyen
+      DBUSER: postgres
       DBPASSWORD: 123
       RAILS_ENV: development
 volumes:
-  db-data:
+  summary-review-data:
     name: summary-review-db-data
     driver: local
