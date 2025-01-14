@@ -15,7 +15,7 @@ class Employee < ApplicationRecord
     def generate_summary(zipped_file)
       errors = analyze_data(zipped_file)
       return errors if errors.length > 0
-      clean_up
+      clean_up(Rails.root.join("app", "view", "employees", "review"))
       generate_zip_file
     end
     def create_employees(list)
@@ -47,16 +47,16 @@ class Employee < ApplicationRecord
       errors
     end
     private
-    def excel_mime_types
-      [
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", # .xlsx
-        "application/vnd.ms-excel" # .xls
-      ]
+    def is_excel_file?(name)
+      extension = name.split(".").last.strip
+      ['xlsx', 'xls'].include? extension
     end
     def analyze_sheet(owner, sheet, options)
       headers = get_headers(sheet)
       employees = get_employees(headers)
-  
+      employees.each do |employee|
+        p employee
+      end
       start_row = options[:start_row]
       end_row = options[:end_row]
       start_col = options[:start_col]
@@ -66,7 +66,7 @@ class Employee < ApplicationRecord
       sheet.sheet_data.rows.each_with_index do |row, row_index|
         next if row_index < start_row
         break if row_index > end_row
-        row.each_with_index do |cell, cell_index|
+        row.cells.each_with_index do |cell, cell_index|
           next if cell_index < start_col
           break if cell_index > end_col
           i = cell_index - start_col
@@ -85,6 +85,7 @@ class Employee < ApplicationRecord
           employee[property][i] << cell.value
           begin
             employee[property] = employee[property].to_msgpack
+            p employee[property]
           rescue => e
             logger.error e.message
           end
@@ -99,10 +100,12 @@ class Employee < ApplicationRecord
       Employee.find_by(full_name: file_name.split("-").first)
     end
     def get_employees(names)
-      Employee.where("name IN (?)", names)
+      p names
+      Employee.where(name: names)
     end
     def get_headers(sheet)
       sheet[1][3..19].map do |cell|
+        p cell.value.split("-").last.strip
         cell.value.split("-").last.strip
       end
     end
@@ -174,24 +177,27 @@ class Employee < ApplicationRecord
     end
     def analyze_data(zipped_file)
       errors = []
-      begin
+      # begin
         # unzip file
         Zip::File.open(zipped_file.path) do |zipfile|
           # iterate through each file
+          
           zipfile.each do |entry|
+            # Extract to file or directory based on name in the archive
+            clean_up(Rails.root.join('test', 'fixtures', 'files', 'extracted'))
+            entry.extract(Rails.root.join('test', 'fixtures', 'files', 'extracted', entry.name))
             # check if each file is xlsx
             # if not return the file name
-            unless excel_mime_types.include? entry.content_type
+            unless is_excel_file?(entry.name)
               errors << "file [#{entry.name}] is not an excel file"
             else
               owner = get_owner(entry.name)
-              p owner
               unless owner
                logger.error "can't find the file's owner!"
                return
               end
               # iterate through each sheet
-              workbook = RubyXL::Parser.parse(entry)
+              workbook = RubyXL::Parser.parse(File.open(Rails.root.join('test', 'fixtures', 'files', 'extracted', entry.name), 'rb'))
               # sheet tu duy
               # sheet nhiet tinh
               # sheet vai tro - chung
@@ -217,10 +223,11 @@ class Employee < ApplicationRecord
   
             end
           end
+          
         end
-      rescue => e
-        logger.error e.message
-      end
+      # rescue => e
+      #   logger.error e.message
+      # end
       errors
     end
     def generate_zip_file
@@ -278,12 +285,11 @@ class Employee < ApplicationRecord
         end
       end
     end
-    def clean_up
-      folder = Rails.root.join("app", "view", "employees", "review")
-      if Dir.exist? folder
-        Dir.foreach(folder) do |file|
+    def clean_up(folder_name)
+      if Dir.exist? folder_name
+        Dir.foreach(folder_name) do |file|
           next if file == "." || file == ".." # skip special entries
-          file_path = File.join(folder, file)
+          file_path = File.join(folder_name, file)
           File.delete(file_path) if File.file?(file_path) # delete only files, not subdirectories
         end
       end

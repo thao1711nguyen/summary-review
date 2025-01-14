@@ -1,4 +1,6 @@
 class EmployeesController < ApplicationController
+  skip_before_action :verify_authenticity_token, only: :summary if Rails.env.test?
+
   def new
   end
   def create
@@ -27,7 +29,6 @@ class EmployeesController < ApplicationController
   end
   def summary
     zipped_file = params[:file]
-    p zipped_file.content_type
     if zipped_file.content_type == "application/zip" || zipped_file.content_type == "application/x-zip-compressed"
       Employee.generate_summary(zipped_file)
       file_name = "result.zip"
