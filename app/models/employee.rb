@@ -9,7 +9,7 @@ class Employee < ApplicationRecord
     normal: 3
   }
   validates :name, presence: true
-  validates :full_name, presence: true
+  START_ROW = 2
 
   class << self
     def generate_summary(zipped_file)
@@ -22,7 +22,7 @@ class Employee < ApplicationRecord
       errors= []
       if managers = list["manager"]
         managers.each do |manager|
-          new_record = Employee.new(name: manager["name"], full_name: manager["full_name"], category: 1)
+          new_record = Employee.new(name: manager["name"], category: 1)
           unless new_record.save
             errors << new_record.errors.full_messages
           end
@@ -30,7 +30,7 @@ class Employee < ApplicationRecord
       end
       if leaders = list["leader"]
         leaders.each do |leader|
-          new_record = Employee.new(name: leader["name"], full_name: leader["full_name"], category: 2)
+          new_record = Employee.new(name: leader["name"], category: 2)
           unless new_record.save
             errors << new_record.errors.full_messages
           end
@@ -38,7 +38,7 @@ class Employee < ApplicationRecord
       end
       if normals = list["normal"]
         normals.each do |normal|
-          new_record = Employee.new(name: normal["name"], full_name: normal["full_name"])
+          new_record = Employee.new(name: normal["name"])
           unless new_record.save
             errors << new_record.errors.full_messages
           end
@@ -97,7 +97,7 @@ class Employee < ApplicationRecord
     end
   
     def get_owner(file_name)
-      Employee.find_by(full_name: file_name.split("-").first)
+      Employee.find_by(name: file_name.split("-").first)
     end
     def get_employees(names)
       p names
@@ -109,7 +109,27 @@ class Employee < ApplicationRecord
         cell.value.split("-").last.strip
       end
     end
+    def get_start_end_col(sheet)
+      header_row = START_ROW - 1
+      result = {}
+      sheet.sheet_data.rows[header_row].each_with_index do |column_name, index|
+        result[:start_col] = index if column_name.value.include?("レビュー")
+        if column_name.value == "レビューReview"
+          result[:end_col] = index
+          return result
+        end
+      end
+      result[:end_col] ||= sheet.sheet_data.rows[header_row].cells.size - 1
+      result
+    end
+    def get_end_row(sheet, start_col)
+      sheet.sheet_data.rows.each_with_index do |row, index|
+        return index if row[start_col] == 0
+      end
+    end
+    
     def sheet_options_original
+
       {
         "tu_duy" => {
           start_row: 2,
@@ -182,7 +202,7 @@ class Employee < ApplicationRecord
         Zip::File.open(zipped_file.path) do |zipfile|
           # iterate through each file
           
-          zipfile.each do |entry|
+          zipfile.each do |entry|    
             # Extract to file or directory based on name in the archive
             clean_up(Rails.root.join('test', 'fixtures', 'files', 'extracted'))
             entry.extract(Rails.root.join('test', 'fixtures', 'files', 'extracted', entry.name))
@@ -210,13 +230,13 @@ class Employee < ApplicationRecord
                   analyze_sheet(owner, sheet, options["tu_duy"])
                 when "熱意- Nhiet tinh"
                   analyze_sheet(owner, sheet, options["nhiet_tinh"])
-                when "Vai trò -Chung"
+                when "Vai tro -Chung"
                   chung_options = options["vai_tro"]["chung"]
                   chung_options[:exclude] = Employee.managers.pluck(:name) + Employee.leaders.pluck(:name)
                   analyze_sheet(owner, sheet, chung_options)
-                when "Vai trò -Leader"
+                when "Vai tro -Leader"
                   analyze_sheet(owner, sheet, options["vai_tro"]["leader"])
-                when "Vai trò -Manager"
+                when "Vai tro -Manager"
                   analyze_sheet(owner, sheet, options["vai_tro"]["manager"])
                 end
               end
@@ -252,7 +272,7 @@ class Employee < ApplicationRecord
               write_to_sheet(employee, sheet, options["vai_tro"])
             end
           end
-          result_file_name = "#{employee.full_name}-review.xlsx"
+          result_file_name = "#{employee.name}-review.xlsx"
           result_file_path = Rails.root.join("app", "views", "employees", "review", result_file_name)
           workbook.write(result_file_path)
           Zip::File.open(Rails.roout.join("app", "views", "employees", "review", "result.zip"), create: true) do |zip|

@@ -1,76 +1,59 @@
 {
     "manager": [
       {
-        "name": "anh Lâm", 
-        "full_name": "DangThanhLam"
+        "name": "DangThanhLam"
       }, 
       {
-        "name": "Linh", 
-        "full_name": "LeThiThuyLinh"
+        "name": "LeThiThuyLinh"
       } 
     ], 
     "leader": [
       {
-        "name": "Tri", 
-        "full_name": "NguyenMinhTri"
+        "name": "NguyenMinhTri"
       }, 
       {
-        "name": "Tài", 
-        "full_name": "TranPhatTai"
+        "name": "TranPhatTai"
       }
     ], 
     "normal": [
       {
-        "name": "Thịnh", 
-        "full_name": "DangPhatThinh"
+        "name": "DangPhatThinh"
       }, 
       {
-        "name": "Lệ", 
-        "full_name": "NguyenThiNhatLe"
+        "name": "NguyenThiNhatLe"
       }, 
       {
-        "name": "Long", 
-        "full_name": "LeMinhLong"
+        "name": "LeMinhLong"
       }, 
       {
-        "name": "Nhu", 
-        "full_name": "DangHoangNhu"
+        "name": "DangHoangNhu"
       }, 
       {
-        "name": "Đạt", 
-        "full_name": "TranTienDat"
+        "name": "TranTienDat"
       }, 
       {
-        "name": "Dũng", 
-        "full_name": "DinHienDung"
+        "name": "DinHienDung"
       }, 
       {
-        "name": "Nam", 
-        "full_name": "MaiNhatNam"
+        "name": "MaiNhatNam"
       }, 
       {
-        "name": "Khương", 
-        "full_name": "NguyenLeKhuong"
+        "name": "NguyenLeKhuong"
       }, 
       {
-        "name": "Thuận", 
-        "full_name": "TranKhanhThuan"
+        "name": "TranKhanhThuan"
       }, 
       {
-        "name": "Thảo(nữ)", 
-        "full_name": "NguyenHuynhThanhThao"
+        "name": "NguyenHuynhThanhThao"
       }, 
       {
-        "name": "Tuấn Anh", 
-        "full_name": "PhamTuanAnh"
+        "name": "PhamTuanAnh"
       }, 
       {
-        "name": "Thảo(nam)", 
-        "full_name": "NguyenVanThao"
+        "name": "NguyenVanThao"
       }, 
       {
-        "name": "Minh", 
-        "full_name": "NguyenQuangMinh"
+        "name": "NguyenQuangMinh"
       }
     ]
 }
