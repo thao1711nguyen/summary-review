@@ -97,7 +97,7 @@ class Employee < ApplicationRecord
     end
   
     def get_owner(file_name)
-      Employee.find_by(name: file_name.split("-").first)
+      Employee.find_by(name: file_name.split("-").strip.first)
     end
     def get_employees(names)
       p names
@@ -115,7 +115,7 @@ class Employee < ApplicationRecord
       sheet.sheet_data.rows[header_row].each_with_index do |column_name, index|
         result[:start_col] = index if column_name.value.include?("レビュー")
         if column_name.value == "レビューReview"
-          result[:end_col] = index
+          result[:end_col] = index - 1
           return result
         end
       end
@@ -123,52 +123,59 @@ class Employee < ApplicationRecord
       result
     end
     def get_end_row(sheet, start_col)
+      result = {}
       sheet.sheet_data.rows.each_with_index do |row, index|
-        return index if row[start_col] == 0
+        if row[start_col] == 0
+          result[:end_row] = index - 1
+          return result
+        end
       end
     end
     
-    def sheet_options_original
-
-      {
-        "tu_duy" => {
-          start_row: 2,
-          end_row: 26,
-          start_col: 3,
-          end_col: 19,
-          property: "tu_duy"
-        },
-        "nhiet_tinh" => {
-          start_row: 2,
-          end_row: 24,
-          start_col: 3,
-          end_col: 19,
-          property: "nhiet_tinh"
-        },
-        "vai_tro" => {
-          "chung" => {
-            start_row: 2,
-            end_row: 21,
-            start_col: 4,
-            end_col: 20,
-            property: "vai_tro"
-          },
-          "leader" => {
-            start_row: 2,
-            end_row: 21,
-            start_col: 4,
-            end_col: 5,
-            property: "vai_tro"
-          },
-          "manager" => {
-            start_row: 2,
-            end_row: 21,
-            start_col: 4,
-            end_col: 5,
-            property: "vai_tro"
-          }
-        }
+    def sheet_edges_original(sheet)
+      result = {
+        start_row: START_ROW
       }
+      result.merge(get_start_end_col(sheet), get_end_row(sheet))
+      # {
+      #   "tu_duy" => {
+      #     start_row: 2,
+      #     end_row: 26,
+      #     start_col: 3,
+      #     end_col: 19,
+      #     property: "tu_duy"
+      #   },
+      #   "nhiet_tinh" => {
+      #     start_row: 2,
+      #     end_row: 24,
+      #     start_col: 3,
+      #     end_col: 19,
+      #     property: "nhiet_tinh"
+      #   },
+      #   "vai_tro" => {
+      #     "chung" => {
+      #       start_row: 2,
+      #       end_row: 21,
+      #       start_col: 4,
+      #       end_col: 20,
+      #       property: "vai_tro"
+      #     },
+      #     "leader" => {
+      #       start_row: 2,
+      #       end_row: 21,
+      #       start_col: 4,
+      #       end_col: 5,
+      #       property: "vai_tro"
+      #     },
+      #     "manager" => {
+      #       start_row: 2,
+      #       end_row: 21,
+      #       start_col: 4,
+      #       end_col: 5,
+      #       property: "vai_tro"
+      #     }
+      #   }
+      # }
     end
     def sheet_options_result
       {
@@ -197,6 +204,7 @@ class Employee < ApplicationRecord
     end
     def analyze_data(zipped_file)
       errors = []
+      clean_up(Rails.root.join('test', 'fixtures', 'files', 'extracted'))
       # begin
         # unzip file
         Zip::File.open(zipped_file.path) do |zipfile|
@@ -204,7 +212,6 @@ class Employee < ApplicationRecord
           
           zipfile.each do |entry|    
             # Extract to file or directory based on name in the archive
-            clean_up(Rails.root.join('test', 'fixtures', 'files', 'extracted'))
             entry.extract(Rails.root.join('test', 'fixtures', 'files', 'extracted', entry.name))
             # check if each file is xlsx
             # if not return the file name
@@ -225,9 +232,11 @@ class Employee < ApplicationRecord
               # sheet vai tro - manager
               options = sheet_options_original
               workbook.worksheets.each do |sheet|
+                sheet_edges = sheet_edges_original(sheet)
+                analyze_sheet(owner, sheet, sheet_edges)
                 case sheet.sheet_name
                 when "考え方- Tu duy"
-                  analyze_sheet(owner, sheet, options["tu_duy"])
+                  analyze_sheet(owner, sheet, sheet_edges, property: "tu_duy")
                 when "熱意- Nhiet tinh"
                   analyze_sheet(owner, sheet, options["nhiet_tinh"])
                 when "Vai tro -Chung"
