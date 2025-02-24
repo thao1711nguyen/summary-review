@@ -51,27 +51,21 @@ class Employee < ApplicationRecord
       extension = name.split(".").last.strip
       ['xlsx', 'xls'].include? extension
     end
-    def analyze_sheet(owner, sheet, options)
-      headers = get_headers(sheet)
-      employees = get_employees(headers)
-      employees.each do |employee|
-        p employee
-      end
-      start_row = options[:start_row]
-      end_row = options[:end_row]
-      start_col = options[:start_col]
-      end_col = options[:end_col]
-      property = options[:property]
+    def analyze_sheet(owner, sheet, sheet_edges, options={})
+      employees = get_employees(sheet, sheet_edges)
+      start_row = sheet_edges[:start_row]
+      end_row = sheet_edges[:end_row]
+      start_col = sheet_edges[:start_col]
+      end_col = sheet_edges[:end_col]
+      property = sheet.sheet_name.split("-").last.strip
       exclude_list = options[:exclude] ? options[:exclude] : []
-      sheet.sheet_data.rows.each_with_index do |row, row_index|
-        next if row_index < start_row
+      sheet.sheet_data.rows.each.with_index(start_row) do |row, row_index|
         break if row_index > end_row
-        row.cells.each_with_index do |cell, cell_index|
-          next if cell_index < start_col
+        row.cells.each.with_index(start_col) do |cell, cell_index|
           break if cell_index > end_col
           i = cell_index - start_col
-          next if owner.name == headers[i]
-          next if exclude_list.include? headers[i]
+          next if owner.name == employees[i].name
+          next if exclude_list.include? employees[i].name
           employee = employees[i]
           if employee[property]
             begin
@@ -82,7 +76,7 @@ class Employee < ApplicationRecord
           else
             employee[property] = Array.new(end_col-start_col+1) { [] }
           end
-          employee[property][i] << cell.value
+          employee[property][i][row_index-start_row] << cell.value
           begin
             employee[property] = employee[property].to_msgpack
             p employee[property]
@@ -99,16 +93,21 @@ class Employee < ApplicationRecord
     def get_owner(file_name)
       Employee.find_by(name: file_name.split("-").strip.first)
     end
+    def get_employees(sheet, sheet_edges)
+      employees = []
+      sheet.sheet_data.rows[sheet_edges[:start_row] - 1].cells
+      .each.with_index(sheet_edges[:start_col]) do |cell, index|
+          name = cell.value.split("-").last.strip 
+          employees << Employee.find_by(name: name)
+          break if index == sheet_edges[:end_col]
+      end
+      employees 
+    end
     def get_employees(names)
       p names
       Employee.where(name: names)
     end
-    def get_headers(sheet)
-      sheet[1][3..19].map do |cell|
-        p cell.value.split("-").last.strip
-        cell.value.split("-").last.strip
-      end
-    end
+    
     def get_start_end_col(sheet)
       header_row = START_ROW - 1
       result = {}
