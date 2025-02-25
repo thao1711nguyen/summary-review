@@ -94,17 +94,13 @@ class Employee < ApplicationRecord
       Employee.find_by(name: file_name.split("-").strip.first)
     end
     def get_employees(sheet, sheet_edges)
-      employees = []
+      names = []
       sheet.sheet_data.rows[sheet_edges[:start_row] - 1].cells
       .each.with_index(sheet_edges[:start_col]) do |cell, index|
           name = cell.value.split("-").last.strip 
-          employees << Employee.find_by(name: name)
+          names << name
           break if index == sheet_edges[:end_col]
       end
-      employees 
-    end
-    def get_employees(names)
-      p names
       Employee.where(name: names)
     end
     
@@ -232,20 +228,12 @@ class Employee < ApplicationRecord
               options = sheet_options_original
               workbook.worksheets.each do |sheet|
                 sheet_edges = sheet_edges_original(sheet)
-                analyze_sheet(owner, sheet, sheet_edges)
-                case sheet.sheet_name
-                when "考え方- Tu duy"
-                  analyze_sheet(owner, sheet, sheet_edges, property: "tu_duy")
-                when "熱意- Nhiet tinh"
-                  analyze_sheet(owner, sheet, options["nhiet_tinh"])
-                when "Vai tro -Chung"
-                  chung_options = options["vai_tro"]["chung"]
-                  chung_options[:exclude] = Employee.managers.pluck(:name) + Employee.leaders.pluck(:name)
-                  analyze_sheet(owner, sheet, chung_options)
-                when "Vai tro -Leader"
-                  analyze_sheet(owner, sheet, options["vai_tro"]["leader"])
-                when "Vai tro -Manager"
-                  analyze_sheet(owner, sheet, options["vai_tro"]["manager"])
+                options = {}
+                if sheet.sheet_name 
+                  options[:exclude] = Employee.managers.pluck(:name) + Employee.leaders.pluck(:name)
+                end
+                analyze_sheet(owner, sheet, sheet_edges, options)
+  
                 end
               end
   
@@ -269,16 +257,9 @@ class Employee < ApplicationRecord
           else
             RubyXL::Parser.parse(Rails.root.join("app", "views", "templates", "cheo", "normal.xlsx"))
           end
-          options = sheet_options_result
           workbook.worksheets.each do |sheet|
-            case sheet.sheet_name
-            when "考え方- Tu duy"
-              write_to_sheet(employee, sheet, options["tu_duy"])
-            when "熱意- Nhiet tinh"
-              write_to_sheet(employee, sheet, options["nhiet_tinh"])
-            else
-              write_to_sheet(employee, sheet, options["vai_tro"])
-            end
+            sheet_edges = sheet_edges_original(sheet)
+            write_to_sheet(employee, sheet, sheet_edges)
           end
           result_file_name = "#{employee.name}-review.xlsx"
           result_file_path = Rails.root.join("app", "views", "employees", "review", result_file_name)
@@ -288,22 +269,20 @@ class Employee < ApplicationRecord
           end
         end
     end
-    def write_to_sheet(owner, sheet, options)
-      headers = get_headers(sheet)
+    def write_to_sheet(owner, sheet, sheet_edges)
+      employee_names = get_employees(sheet, sheet_edges).pluck(:name)
   
-      start_row = options[:start_row]
-      end_row = options[:end_row]
-      start_col = options[:start_col]
-      end_col = options[:end_col]
-      property = options[:property]
-      sheet.sheet_data.rows.each_with_index do |row, row_index|
-        next if row_index < start_row
+      start_row = sheet_edges[:start_row]
+      end_row = sheet_edges[:end_row]
+      start_col = sheet_edges[:start_col]
+      end_col = sheet_edges[:end_col]
+      property = sheet.sheet_name.split("-").last.strip
+      sheet.sheet_data.rows.each.with_index(start_row) do |row, row_index|
         break if row_index > end_row
-        row.cells.each_with_index do |cell, cell_index|
-          next if cell_index < start_col
+        row.cells.each.with_index do |cell, cell_index|
           break if cell_index > end_col
           i = cell_index - start_col
-          next if owner.name == headers[i]
+          next if owner.name == employee_names[i]
           begin
             data = MessagePack.unpack(owner[property])
           rescue => e
