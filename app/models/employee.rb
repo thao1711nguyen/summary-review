@@ -13,6 +13,7 @@ class Employee < ApplicationRecord
 
   class << self
     def generate_summary(zipped_file)
+      remove_data
       errors = analyze_data(zipped_file)
       return errors if errors.length > 0
       clean_up(Rails.root.join("app", "view", "employees", "review"))
@@ -46,6 +47,13 @@ class Employee < ApplicationRecord
       end
       errors
     end
+    def remove_data
+      Employee.all.each do |employee|
+        employee.tu_duy = nil 
+        employee.nhiet_tinh = nil 
+        employee.vai_tro = nil 
+      end
+    end
     private
     def is_excel_file?(name)
       extension = name.split(".").last.strip
@@ -59,9 +67,12 @@ class Employee < ApplicationRecord
       end_col = sheet_edges[:end_col]
       property = sheet.sheet_name.split("-").last.strip
       exclude_list = options[:exclude] ? options[:exclude] : []
-      sheet.sheet_data.rows.each.with_index(start_row) do |row, row_index|
+      sheet.sheet_name
+      sheet.sheet_data.rows.each_with_index do |row, row_index|
+        next if row_index < start_row
         break if row_index > end_row
-        row.cells.each.with_index(start_col) do |cell, cell_index|
+        row.cells.each_with_index do |cell, cell_index|
+          next if cell_index < start_col
           break if cell_index > end_col
           i = cell_index - start_col
           next if owner.name == employees[i].name
@@ -76,7 +87,7 @@ class Employee < ApplicationRecord
           else
             employee[property] = Array.new(end_col-start_col+1) { [] }
           end
-          employee[property][i][row_index-start_row] << cell.value
+          employee[property][i] << cell.value
           begin
             employee[property] = employee[property].to_msgpack
             p employee[property]
@@ -91,12 +102,13 @@ class Employee < ApplicationRecord
     end
   
     def get_owner(file_name)
-      Employee.find_by(name: file_name.split("-").strip.first)
+      Employee.find_by(name: file_name.split("-").first.strip)
     end
     def get_employees(sheet, sheet_edges)
       names = []
       sheet.sheet_data.rows[sheet_edges[:start_row] - 1].cells
-      .each.with_index(sheet_edges[:start_col]) do |cell, index|
+      .each_with_index do |cell, index|
+          next if index < sheet_edges[:start_col]
           name = cell.value.split("-").last.strip 
           names << name
           break if index == sheet_edges[:end_col]
@@ -107,10 +119,12 @@ class Employee < ApplicationRecord
     def get_start_end_col(sheet)
       header_row = START_ROW - 1
       result = {}
-      sheet.sheet_data.rows[header_row].each_with_index do |column_name, index|
-        result[:start_col] = index if column_name.value.include?("レビュー")
-        if column_name.value == "レビューReview"
-          result[:end_col] = index - 1
+      sheet.sheet_data.rows[header_row].cells.each_with_index do |column_name, index|
+        if column_name&.value&.include?("レビュー") && result[:start_col].nil?
+          result[:start_col] = index
+        end
+        if column_name && column_name.value == "レビュー\nReview"
+          result[:end_col] = index  - 1
           return result
         end
       end
@@ -120,7 +134,8 @@ class Employee < ApplicationRecord
     def get_end_row(sheet, start_col)
       result = {}
       sheet.sheet_data.rows.each_with_index do |row, index|
-        if row[start_col] == 0
+        next if index < start_col
+        if row[1].value.to_s.include?("合計")
           result[:end_row] = index - 1
           return result
         end
@@ -131,7 +146,8 @@ class Employee < ApplicationRecord
       result = {
         start_row: START_ROW
       }
-      result.merge(get_start_end_col(sheet), get_end_row(sheet))
+      result = result.merge(get_start_end_col(sheet))
+      result.merge(get_end_row(sheet, result[:start_col]))
       # {
       #   "tu_duy" => {
       #     start_row: 2,
@@ -225,7 +241,6 @@ class Employee < ApplicationRecord
               # sheet vai tro - chung
               # sheet vai tro - leader
               # sheet vai tro - manager
-              options = sheet_options_original
               workbook.worksheets.each do |sheet|
                 sheet_edges = sheet_edges_original(sheet)
                 options = {}
@@ -234,7 +249,6 @@ class Employee < ApplicationRecord
                 end
                 analyze_sheet(owner, sheet, sheet_edges, options)
   
-                end
               end
   
             end
@@ -277,9 +291,11 @@ class Employee < ApplicationRecord
       start_col = sheet_edges[:start_col]
       end_col = sheet_edges[:end_col]
       property = sheet.sheet_name.split("-").last.strip
-      sheet.sheet_data.rows.each.with_index(start_row) do |row, row_index|
+      sheet.sheet_data.rows.each_with_index do |row, row_index|
+        next if row_index < start_row
         break if row_index > end_row
-        row.cells.each.with_index do |cell, cell_index|
+        row.cells.each_with_index do |cell, cell_index|
+          next if cell_index < sheet_edges[:start_col]
           break if cell_index > end_col
           i = cell_index - start_col
           next if owner.name == employee_names[i]
