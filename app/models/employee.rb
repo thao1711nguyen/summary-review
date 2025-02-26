@@ -1,73 +1,40 @@
 class Employee < ApplicationRecord
-  has_one_attached :summary_file
-  scope :managers, lambda { where(category: 1) }
-  scope :leaders, lambda { where(category: 2) }
-  scope :normals, lambda { where(category: 3) }
-  enum :category, {
-    manager: 1,
-    leader: 2,
-    normal: 3
-  }
-  validates :name, presence: true
+  
+
   START_ROW = 2
+  MANAGER = 1
+  LEADER = 2
+  NORMAL = 3
+
+  
 
   class << self
+
     def generate_summary(zipped_file)
-      remove_data
+      initialize_employees
       errors = analyze_data(zipped_file)
       return errors if errors.length > 0
       clean_up(Rails.root.join("app", "view", "employees", "review"))
       generate_zip_file
     end
-    def create_employees(list)
-      errors= []
-      if managers = list["manager"]
-        managers.each do |manager|
-          new_record = Employee.new(name: manager["name"], category: 1)
-          unless new_record.save
-            errors << new_record.errors.full_messages
-          end
-        end
-      end
-      if leaders = list["leader"]
-        leaders.each do |leader|
-          new_record = Employee.new(name: leader["name"], category: 2)
-          unless new_record.save
-            errors << new_record.errors.full_messages
-          end
-        end
-      end
-      if normals = list["normal"]
-        normals.each do |normal|
-          new_record = Employee.new(name: normal["name"])
-          unless new_record.save
-            errors << new_record.errors.full_messages
-          end
-        end
-      end
-      errors
-    end
-    def remove_data
-      Employee.all.each do |employee|
-        employee.tu_duy = nil 
-        employee.nhiet_tinh = nil 
-        employee.vai_tro = nil 
-      end
-    end
+    
+   
     private
+    def initialize_employees
+      @employees = {}
+    end
     def is_excel_file?(name)
       extension = name.split(".").last.strip
       ['xlsx', 'xls'].include? extension
     end
     def analyze_sheet(owner, sheet, sheet_edges, options={})
-      employees = get_employees(sheet, sheet_edges)
+      emp_names = get_names(sheet, sheet_edges)
       start_row = sheet_edges[:start_row]
       end_row = sheet_edges[:end_row]
       start_col = sheet_edges[:start_col]
       end_col = sheet_edges[:end_col]
       property = sheet.sheet_name.split("-").last.strip
       exclude_list = options[:exclude] ? options[:exclude] : []
-      sheet.sheet_name
       sheet.sheet_data.rows.each_with_index do |row, row_index|
         next if row_index < start_row
         break if row_index > end_row
@@ -75,45 +42,38 @@ class Employee < ApplicationRecord
           next if cell_index < start_col
           break if cell_index > end_col
           i = cell_index - start_col
-          next if owner.name == employees[i].name
-          next if exclude_list.include? employees[i].name
-          employee = employees[i]
-          if employee[property]
-            begin
-              employee[property] = MessagePack.unpack(employee[property])
-            rescue => e
-              logger.error e.message
-            end
-          else
-            employee[property] = Array.new(end_col-start_col+1) { [] }
+          next if owner == emp_names[i]
+          next if exclude_list.include? emp_names[i]
+          unless @employees[emp_names[i]][property]
+            
+            @employees[emp_names[i]][property] = Array.new(@employees.keys.length) { [] }
           end
-          employee[property][i] << cell.value
-          begin
-            employee[property] = employee[property].to_msgpack
-            p employee[property]
-          rescue => e
-            logger.error e.message
-          end
-          unless employee.save
-            logger.error employee.errors.full_messages.join(", ")
-          end
+          @employees[emp_names[i]][property][i] << cell.value
         end
-      end
+      end  
     end
-  
-    def get_owner(file_name)
-      Employee.find_by(name: file_name.split("-").first.strip)
-    end
-    def get_employees(sheet, sheet_edges)
+    def get_names(sheet, sheet_edges)
       names = []
+      sheet.sheet_data.rows[sheet_edges[:start_row] - 1].cells
+      .each_with_index do |cell, index|
+        next if index < sheet_edges[:start_col]
+        name = cell.value.split("-").last.strip 
+        names << name
+        break if index == sheet_edges[:end_col]
+      end
+      names
+    end
+
+    def setup_employees(sheet, sheet_edges, category=NORMAL)
       sheet.sheet_data.rows[sheet_edges[:start_row] - 1].cells
       .each_with_index do |cell, index|
           next if index < sheet_edges[:start_col]
           name = cell.value.split("-").last.strip 
-          names << name
+          @employees[name] = {}
+          @employees[name][:category] = category
           break if index == sheet_edges[:end_col]
       end
-      Employee.where(name: names)
+      
     end
     
     def get_start_end_col(sheet)
@@ -131,6 +91,7 @@ class Employee < ApplicationRecord
       result[:end_col] ||= sheet.sheet_data.rows[header_row].cells.size - 1
       result
     end
+
     def get_end_row(sheet, start_col)
       result = {}
       sheet.sheet_data.rows.each_with_index do |row, index|
@@ -148,45 +109,6 @@ class Employee < ApplicationRecord
       }
       result = result.merge(get_start_end_col(sheet))
       result.merge(get_end_row(sheet, result[:start_col]))
-      # {
-      #   "tu_duy" => {
-      #     start_row: 2,
-      #     end_row: 26,
-      #     start_col: 3,
-      #     end_col: 19,
-      #     property: "tu_duy"
-      #   },
-      #   "nhiet_tinh" => {
-      #     start_row: 2,
-      #     end_row: 24,
-      #     start_col: 3,
-      #     end_col: 19,
-      #     property: "nhiet_tinh"
-      #   },
-      #   "vai_tro" => {
-      #     "chung" => {
-      #       start_row: 2,
-      #       end_row: 21,
-      #       start_col: 4,
-      #       end_col: 20,
-      #       property: "vai_tro"
-      #     },
-      #     "leader" => {
-      #       start_row: 2,
-      #       end_row: 21,
-      #       start_col: 4,
-      #       end_col: 5,
-      #       property: "vai_tro"
-      #     },
-      #     "manager" => {
-      #       start_row: 2,
-      #       end_row: 21,
-      #       start_col: 4,
-      #       end_col: 5,
-      #       property: "vai_tro"
-      #     }
-      #   }
-      # }
     end
     def sheet_options_result
       {
@@ -221,7 +143,7 @@ class Employee < ApplicationRecord
         Zip::File.open(zipped_file.path) do |zipfile|
           # iterate through each file
           
-          zipfile.each do |entry|    
+          zipfile.each_with_index do |entry, index|    
             # Extract to file or directory based on name in the archive
             entry.extract(Rails.root.join('test', 'fixtures', 'files', 'extracted', entry.name))
             # check if each file is xlsx
@@ -229,11 +151,7 @@ class Employee < ApplicationRecord
             unless is_excel_file?(entry.name)
               errors << "file [#{entry.name}] is not an excel file"
             else
-              owner = get_owner(entry.name)
-              unless owner
-               logger.error "can't find the file's owner!"
-               return
-              end
+              owner = entry.name.split("-").first.strip
               # iterate through each sheet
               workbook = RubyXL::Parser.parse(File.open(Rails.root.join('test', 'fixtures', 'files', 'extracted', entry.name), 'rb'))
               # sheet tu duy
@@ -241,11 +159,33 @@ class Employee < ApplicationRecord
               # sheet vai tro - chung
               # sheet vai tro - leader
               # sheet vai tro - manager
-              workbook.worksheets.each do |sheet|
+              workbook.worksheets.each_with_index do |sheet, sheet_index|
+                break if sheet_index > 4
                 sheet_edges = sheet_edges_original(sheet)
+                if index == 0 
+                  setup_employees(sheet, sheet_edges) if sheet_index == 0
+                  if sheet.sheet_name.include?("leader")
+                    leaders = get_names(sheet, sheet_edges) 
+                    @employees.each do |employee, property|
+                      if leaders.include?(employee)
+                        property[:category] = LEADER
+                        property["vai_tro"] = nil
+                      end
+                    end
+                  end
+                  if sheet.sheet_name.include?("manager") 
+                    managers = get_names(sheet, sheet_edges) 
+                    @employees.each do |employee, property|
+                      if managers.include?(employee)
+                        property[:category] =  MANAGER 
+                        property["vai_tro"] = nil
+                      end
+                    end
+                  end
+                end
                 options = {}
-                if sheet.sheet_name 
-                  options[:exclude] = Employee.managers.pluck(:name) + Employee.leaders.pluck(:name)
+                if sheet.sheet_name.include?("chung") 
+                  options[:exclude] = @employees.select {|name, property| property[:category] == MANAGER || property[:category] == LEADER  }.keys
                 end
                 analyze_sheet(owner, sheet, sheet_edges, options)
   
@@ -261,9 +201,8 @@ class Employee < ApplicationRecord
       errors
     end
     def generate_zip_file
-        employees = Employee.all
-        employees.each do |employee|
-          workbook = case employee.category
+        @employees.each do |employee, property|
+          workbook = case property[:category]
           when 1
             RubyXL::Parser.parse(Rails.root.join("app", "views", "templates", "cheo", "manager.xlsx"))
           when 2
@@ -271,40 +210,41 @@ class Employee < ApplicationRecord
           else
             RubyXL::Parser.parse(Rails.root.join("app", "views", "templates", "cheo", "normal.xlsx"))
           end
-          workbook.worksheets.each do |sheet|
+          workbook.worksheets.each_with_index do |sheet, sheet_index|
+            break if sheet_index > 2
             sheet_edges = sheet_edges_original(sheet)
             write_to_sheet(employee, sheet, sheet_edges)
           end
-          result_file_name = "#{employee.name}-review.xlsx"
-          result_file_path = Rails.root.join("app", "views", "employees", "review", result_file_name)
+          result_dir_path = Rails.root.join("app", "views", "employees", "review")
+          clean_up(result_dir_path)
+          FileUtils.mkdir_p(result_dir_path) unless File.directory?(result_dir_path)
+          result_file_name = "#{employee}-review.xlsx"
+          result_file_path = Rails.root.join(result_dir_path, result_file_name)
           workbook.write(result_file_path)
-          Zip::File.open(Rails.roout.join("app", "views", "employees", "review", "result.zip"), create: true) do |zip|
+          Zip::File.open(Rails.root.join("app", "views", "employees", "review", "result.zip"), create: true) do |zip|
             zip.add(result_file_name, result_file_path)
           end
         end
     end
     def write_to_sheet(owner, sheet, sheet_edges)
-      employee_names = get_employees(sheet, sheet_edges).pluck(:name)
+      emp_names = get_names(sheet, sheet_edges)
   
       start_row = sheet_edges[:start_row]
       end_row = sheet_edges[:end_row]
       start_col = sheet_edges[:start_col]
       end_col = sheet_edges[:end_col]
       property = sheet.sheet_name.split("-").last.strip
-      sheet.sheet_data.rows.each_with_index do |row, row_index|
-        next if row_index < start_row
-        break if row_index > end_row
-        row.cells.each_with_index do |cell, cell_index|
-          next if cell_index < sheet_edges[:start_col]
-          break if cell_index > end_col
-          i = cell_index - start_col
-          next if owner.name == employee_names[i]
-          begin
-            data = MessagePack.unpack(owner[property])
-          rescue => e
-            logger.error e.message
-          end
-          cell[cell_index] = data[i][row_index-start_row]
+      
+
+      for row_index in start_row..end_row 
+        for cell_index in start_col..end_col
+          i = cell_index - start_col 
+          next if owner == emp_names[i]
+          p "property: #{property}"
+          p "owner: #{owner}"
+          p "data: #{@employees[owner]}"
+          data = @employees[owner][property][i][row_index - start_row]
+          sheet.add_cell(row_index, cell_index, data)
         end
       end
     end

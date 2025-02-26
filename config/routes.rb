@@ -11,10 +11,9 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
-  resources :employees, only: [ :new, :create ]
   scope :employees do 
     get "summary_reviews", to: "employees#new_summary"
     post "summary_reviews", to: "employees#summary"
   end
-  root "employees#new"
+  root "employees#new_summary"
 end
