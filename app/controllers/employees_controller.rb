@@ -11,8 +11,7 @@ class EmployeesController < ApplicationController
       send_file zipped_file_path,
                 type: "application/zip",
                 filename: file_name,
-                diposition: "attachment"
-
+                disposition: "attachment"
     else
       flash[:alert] = "You need to send a zip file"
       redirect_to summary_reviews_path

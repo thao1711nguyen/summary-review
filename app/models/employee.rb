@@ -14,7 +14,7 @@ class Employee < ApplicationRecord
       initialize_employees
       errors = analyze_data(zipped_file)
       return errors if errors.length > 0
-      clean_up(Rails.root.join("app", "view", "employees", "review"))
+      clean_up(Rails.root.join("app", "views", "employees", "review"))
       generate_zip_file
     end
     
@@ -35,6 +35,7 @@ class Employee < ApplicationRecord
       end_col = sheet_edges[:end_col]
       property = sheet.sheet_name.split("-").last.strip
       exclude_list = options[:exclude] ? options[:exclude] : []
+      result = {}
       sheet.sheet_data.rows.each_with_index do |row, row_index|
         next if row_index < start_row
         break if row_index > end_row
@@ -45,12 +46,17 @@ class Employee < ApplicationRecord
           next if owner == emp_names[i]
           next if exclude_list.include? emp_names[i]
           unless @employees[emp_names[i]][property]
-            
-            @employees[emp_names[i]][property] = Array.new(@employees.keys.length) { [] }
+            @employees[emp_names[i]][property] = Array.new
           end
-          @employees[emp_names[i]][property][i] << cell.value
+          result[emp_names[i]] = [] unless result[emp_names[i]]
+          next unless cell
+          result[emp_names[i]] << cell.value
         end
       end  
+      @employees.each do |employee, emp_property|
+        next unless emp_property[property]
+        @employees[employee][property] << result[employee]
+      end
     end
     def get_names(sheet, sheet_edges)
       names = []
@@ -201,6 +207,8 @@ class Employee < ApplicationRecord
       errors
     end
     def generate_zip_file
+      result_dir_path = Rails.root.join("app", "views", "employees", "review")
+      clean_up(result_dir_path)
         @employees.each do |employee, property|
           workbook = case property[:category]
           when 1
@@ -215,36 +223,34 @@ class Employee < ApplicationRecord
             sheet_edges = sheet_edges_original(sheet)
             write_to_sheet(employee, sheet, sheet_edges)
           end
-          result_dir_path = Rails.root.join("app", "views", "employees", "review")
-          clean_up(result_dir_path)
-          FileUtils.mkdir_p(result_dir_path) unless File.directory?(result_dir_path)
           result_file_name = "#{employee}-review.xlsx"
           result_file_path = Rails.root.join(result_dir_path, result_file_name)
           workbook.write(result_file_path)
-          Zip::File.open(Rails.root.join("app", "views", "employees", "review", "result.zip"), create: true) do |zip|
-            zip.add(result_file_name, result_file_path)
-          end
         end
+      # Create ZIP after processing all employees
+      Zip::File.open(Rails.root.join("app", "views", "employees", "review", "result.zip"), create: true) do |zip|
+        Dir.glob("#{result_dir_path}/*.xlsx").each do |file|
+          zip.add(File.basename(file), file)
+        end
+      end
     end
     def write_to_sheet(owner, sheet, sheet_edges)
       emp_names = get_names(sheet, sheet_edges)
-  
       start_row = sheet_edges[:start_row]
       end_row = sheet_edges[:end_row]
       start_col = sheet_edges[:start_col]
       end_col = sheet_edges[:end_col]
       property = sheet.sheet_name.split("-").last.strip
       
-
       for row_index in start_row..end_row 
         for cell_index in start_col..end_col
           i = cell_index - start_col 
-          next if owner == emp_names[i]
-          p "property: #{property}"
-          p "owner: #{owner}"
-          p "data: #{@employees[owner]}"
-          data = @employees[owner][property][i][row_index - start_row]
-          sheet.add_cell(row_index, cell_index, data)
+          if @employees[owner][property]
+            if @employees[owner][property][i]
+              data = @employees[owner][property][i][row_index - start_row] 
+              sheet.add_cell(row_index, cell_index, data)  
+            end
+          end
         end
       end
     end
