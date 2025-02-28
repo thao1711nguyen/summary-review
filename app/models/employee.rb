@@ -14,7 +14,6 @@ class Employee < ApplicationRecord
       initialize_employees
       errors = analyze_data(zipped_file)
       return errors if errors.length > 0
-      clean_up(Rails.root.join("app", "views", "employees", "review"))
       generate_zip_file
     end
     
@@ -49,8 +48,7 @@ class Employee < ApplicationRecord
             @employees[emp_names[i]][property] = Array.new
           end
           result[emp_names[i]] = [] unless result[emp_names[i]]
-          next unless cell
-          result[emp_names[i]] << cell.value
+          result[emp_names[i]] << cell.value if cell 
         end
       end  
       @employees.each do |employee, emp_property|
@@ -116,31 +114,7 @@ class Employee < ApplicationRecord
       result = result.merge(get_start_end_col(sheet))
       result.merge(get_end_row(sheet, result[:start_col]))
     end
-    def sheet_options_result
-      {
-        "tu_duy" => {
-          start_row: 2,
-          end_row: 26,
-          start_col: 3,
-          end_col: 19,
-          property: "tu_duy"
-        },
-        "nhiet_tinh" => {
-          start_row: 2,
-          end_row: 24,
-          start_col: 3,
-          end_col: 19,
-          property: "nhiet_tinh"
-        },
-        "vai_tro" => {
-          start_row: 2,
-          end_row: 21,
-          start_col: 4,
-          end_col: 20,
-          property: "vai_tro"
-        }
-      }
-    end
+    
     def analyze_data(zipped_file)
       errors = []
       clean_up(Rails.root.join('test', 'fixtures', 'files', 'extracted'))
@@ -166,7 +140,7 @@ class Employee < ApplicationRecord
               # sheet vai tro - leader
               # sheet vai tro - manager
               workbook.worksheets.each_with_index do |sheet, sheet_index|
-                break if sheet_index > 4
+                break if sheet_index > 4 #number of sheet in each submitted file
                 sheet_edges = sheet_edges_original(sheet)
                 if index == 0 
                   setup_employees(sheet, sheet_edges) if sheet_index == 0
@@ -209,30 +183,32 @@ class Employee < ApplicationRecord
     def generate_zip_file
       result_dir_path = Rails.root.join("app", "views", "employees", "review")
       clean_up(result_dir_path)
-        @employees.each do |employee, property|
-          workbook = case property[:category]
-          when 1
-            RubyXL::Parser.parse(Rails.root.join("app", "views", "templates", "cheo", "manager.xlsx"))
-          when 2
-            RubyXL::Parser.parse(Rails.root.join("app", "views", "templates", "cheo", "leader.xlsx"))
-          else
-            RubyXL::Parser.parse(Rails.root.join("app", "views", "templates", "cheo", "normal.xlsx"))
-          end
-          workbook.worksheets.each_with_index do |sheet, sheet_index|
-            break if sheet_index > 2
-            sheet_edges = sheet_edges_original(sheet)
-            write_to_sheet(employee, sheet, sheet_edges)
-          end
-          result_file_name = "#{employee}-review.xlsx"
-          result_file_path = Rails.root.join(result_dir_path, result_file_name)
-          workbook.write(result_file_path)
+      @employees.each do |employee, property|
+        workbook = case property[:category]
+        when 1
+          RubyXL::Parser.parse(Rails.root.join("app", "views", "templates", "cheo", "manager.xlsx"))
+        when 2
+          RubyXL::Parser.parse(Rails.root.join("app", "views", "templates", "cheo", "leader.xlsx"))
+        else
+          RubyXL::Parser.parse(Rails.root.join("app", "views", "templates", "cheo", "normal.xlsx"))
         end
+        workbook.worksheets.each_with_index do |sheet, sheet_index|
+          break if sheet_index > 2 #number of sheet in each result file
+          sheet_edges = sheet_edges_original(sheet)
+          write_to_sheet(employee, sheet, sheet_edges)
+        end
+        result_file_name = "#{employee}-review.xlsx"
+        result_file_path = Rails.root.join(result_dir_path, result_file_name)
+        workbook.write(result_file_path)
+      end
       # Create ZIP after processing all employees
-      Zip::File.open(Rails.root.join("app", "views", "employees", "review", "result.zip"), create: true) do |zip|
+      result_file_path = Rails.root.join(result_dir_path, "result.zip")
+      Zip::File.open(result_file_path, create: true) do |zip|
         Dir.glob("#{result_dir_path}/*.xlsx").each do |file|
           zip.add(File.basename(file), file)
         end
       end
+      result_file_path
     end
     def write_to_sheet(owner, sheet, sheet_edges)
       emp_names = get_names(sheet, sheet_edges)
