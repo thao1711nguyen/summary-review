@@ -3,6 +3,7 @@ class EmployeesController < ApplicationController
   def new_summary
   end
   def summary
+    file_name = 'result.zip'
     zipped_file = params[:file]
     if zipped_file.content_type == "application/zip" || zipped_file.content_type == "application/x-zip-compressed"
       zipped_file_path = Employee.generate_summary(zipped_file)
