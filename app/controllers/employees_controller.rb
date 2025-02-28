@@ -9,9 +9,9 @@ class EmployeesController < ApplicationController
       file_name = "result.zip"
       zipped_file_path = Rails.root.join("app", "views", "employees", "review", file_name)
       send_file zipped_file_path,
-                type: "application/zip",
                 filename: file_name,
                 disposition: "attachment"
+    
     else
       flash[:alert] = "You need to send a zip file"
       redirect_to summary_reviews_path

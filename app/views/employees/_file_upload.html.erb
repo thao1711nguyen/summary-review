@@ -1,4 +1,4 @@
-<%= form_with url: url, method: :post do |f| %>
+<%= form_with url: url, method: :post, data: { turbo: false } do |f| %>
     <div>
         <%= f.label :file, "Choose a file to upload" %>
         <%= f.file_field :file, required: true %>

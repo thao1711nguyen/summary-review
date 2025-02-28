@@ -55,7 +55,7 @@ class Employee < ApplicationRecord
       end  
       @employees.each do |employee, emp_property|
         next unless emp_property[property]
-        @employees[employee][property] << result[employee]
+        @employees[employee][property] << result[employee] if result[employee]
       end
     end
     def get_names(sheet, sheet_edges)
