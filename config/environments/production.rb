@@ -93,7 +93,6 @@ Rails.application.configure do
   config.active_record.dump_schema_after_migration = false
 
   # Enable DNS rebinding protection and other `Host` header attacks.
-  config.hosts = ["summary-review.onrender.com"]
   config.hosts.clear
 
   # config.hosts = [
