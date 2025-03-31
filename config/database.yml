@@ -8,9 +8,9 @@ default: &default
   adapter: postgresql
   encoding: utf8
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  username: <%= ENV.fetch("DBUSER") %>
-  password: <%= ENV.fetch("DBPASSWORD") %>
-  host: <%= ENV.fetch("DBHOST") %>
+  username: <%= ENV.fetch("DBUSER") || ""%>
+  password: <%= ENV.fetch("DBPASSWORD") || "" %>
+  host: <%= ENV.fetch("DBHOST") || "" %>
   timeout: 5000
 
 development:
